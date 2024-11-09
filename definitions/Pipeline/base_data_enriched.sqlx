@@ -1,0 +1,86 @@
+config {
+    type: "table",
+    schema: constants.DATASET_ID,
+    description: "enriched base dataset"
+}
+
+WITH
+  base_dataset AS (
+  SELECT
+    VIN,
+    Option_Quantities,
+    Options_Code,
+    base_data.Option_Desc,
+    Model_Text,
+    SUBSTRING(Model_Text, 1, 4) AS MODEL,
+    Sales_Price
+  FROM
+    ${ref('base_data')} AS base_data ),
+  options_dataset
+  -- Aggregated to get average material_cost per option and model
+  AS (
+SELECT
+  DISTINCT MODEL,
+  Option_Code,
+  option_desc,
+  AVG(Material_Cost) OVER (PARTITION BY Option_Code, MODEL ) Material_Cost
+FROM
+  ${ref('options_data')} AS options_data ),
+  NonExactMatch
+  -- Aggregated to get average material_cost across all models per option
+  AS (
+SELECT
+  DISTINCT Option_Code,
+  AVG(Material_Cost) OVER (PARTITION BY Option_Code) Material_Cost
+FROM
+  ${ref('options_data')} AS options_data ),
+  Get_Production_Cost AS (
+  SELECT
+    base_dataset.VIN,
+    base_dataset.Option_Quantities,
+    base_dataset.Options_Code,
+    base_dataset.Option_Desc,
+    options_dataset.Option_Code,
+    base_dataset.Model_Text,
+    base_dataset.Model AS Base_Model,
+    options_dataset.Model AS Options_Model,
+    base_dataset.Sales_Price,
+    options_dataset.Material_Cost AS Options_MaterialCost,
+    NonExactMatch.Option_Code NonExactMatch_Option_Code,
+    NonExactMatch.Material_Cost NonExactMatch_Material_Cost,
+    CASE
+      WHEN ( base_dataset.Sales_Price = 0 OR SIGN(base_dataset.Sales_Price) = - 1 ) THEN 0
+      WHEN ( base_dataset.Options_Code = options_dataset.Option_Code
+      AND base_dataset.Model = options_dataset.Model ) THEN options_dataset.Material_Cost
+      WHEN ( base_dataset.Options_Code = NonExactMatch.Option_Code AND options_dataset.Model IS NULL ) THEN NonExactMatch.Material_Cost
+      WHEN (IFNULL(base_dataset.Options_Code, '') != IFNULL(NonExactMatch.Option_Code, '')) THEN (base_dataset.Sales_Price * 0.45)
+  END
+    AS Production_Cost
+  FROM
+    base_dataset
+  LEFT JOIN
+    options_dataset
+  ON
+    base_dataset.Options_Code = options_dataset.Option_Code
+    AND base_dataset.Model = options_dataset.Model
+  LEFT JOIN
+    NonExactMatch
+  ON
+    base_dataset.Options_Code = NonExactMatch.Option_Code )
+SELECT
+  VIN,
+  Option_Quantities,
+  Options_Code,
+  Option_Desc,
+  Option_Code,
+  NonExactMatch_Option_Code,
+  Model_Text,
+  Base_Model,
+  options_Model,
+  Sales_Price,
+  options_MaterialCost,
+  NonExactMatch_Material_Cost,
+  production_cost,
+  (Sales_Price - production_cost) Profit
+FROM
+  Get_Production_Cost
