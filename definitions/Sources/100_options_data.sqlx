@@ -2,5 +2,5 @@ config {
     type: "declaration",
     database: constants.PROJECT_ID,
     schema: constants.DATASET_ID,
-    name: "base_data"
+    name: "100_options_data"
 }

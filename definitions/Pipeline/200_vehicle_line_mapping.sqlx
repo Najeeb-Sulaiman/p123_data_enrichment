@@ -1,0 +1,18 @@
+config {
+    type: "table",
+    schema: constants.DATASET_ID,
+    description: "cleaned vehicle_line_mapping",
+    uniqueKey: ["nameplate_code"],
+    assertions: {
+    uniqueKey: ["nameplate_code"],
+    nonNull: ["nameplate_code"]
+  }
+}
+
+SELECT
+  nameplate_code,
+  brand,
+  IFNULL(platform, 'Unknown') AS platform,
+  IFNULL(nameplate_display, 'Unknown') AS nameplate_display
+FROM
+  ${ref('100_vehicle_line_mapping')}

@@ -1,7 +1,8 @@
 config {
-    type: "table",
+    type: "view",
     schema: constants.DATASET_ID,
-    description: "enriched base dataset"
+    description: "enriched base dataset",
+    disabled:true
 }
 
 WITH
