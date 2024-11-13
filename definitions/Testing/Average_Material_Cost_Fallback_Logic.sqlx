@@ -1,0 +1,41 @@
+config {
+    type: "assertion",
+    description: "Validate average material cost fallback for unmatched option_code and model."
+}
+
+WITH
+  avg_material_cost AS (
+  SELECT
+    DISTINCT model,
+    option_code,
+    AVG(Material_Cost) OVER (PARTITION BY Option_Code) avg_cost
+  FROM
+    ${ref("200_options_data")} ),
+  enriched_data AS (
+  SELECT
+    VIN,
+    options_code,
+    option_code,
+    Model_Text,
+    production_cost,
+    sales_price,
+    avg_cost
+  FROM
+    ${ref("800_options_profitability")} base
+  LEFT JOIN
+    avg_material_cost AS options
+  ON
+    base.options_code = options.option_code )
+SELECT
+  *
+FROM
+  enriched_data
+WHERE
+  Model_Text NOT IN (
+  SELECT
+    model
+  FROM
+    avg_material_cost)
+  AND option_code IS NOT NULL
+  AND ROUND(production_cost, 2) != ROUND(avg_cost, 2)
+  AND sales_price > 0

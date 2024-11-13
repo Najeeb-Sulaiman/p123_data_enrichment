@@ -1,0 +1,11 @@
+config {
+  type: "assertion",
+  description: "Validate that production cost is zero when sales price is zero or negative."
+}
+
+SELECT
+  production_cost
+FROM
+  ${ref("800_options_profitability")}
+WHERE
+  sales_price <= 0 AND production_cost != 0

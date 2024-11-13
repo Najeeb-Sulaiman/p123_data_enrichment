@@ -1,0 +1,11 @@
+config {
+  type: "assertion",
+  description: "Validate that profit is correctly calculated as sales price minus production cost."
+}
+
+SELECT
+  profit
+FROM
+  ${ref("800_options_profitability")}
+WHERE
+  profit != (sales_price - production_cost)

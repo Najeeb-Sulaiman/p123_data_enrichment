@@ -1,0 +1,19 @@
+config {
+    type: "table",
+    schema: constants.DATASET_ID,
+    description: "Cleaned base_data",
+    uniqueKey: ["VIN"],
+    assertions: {
+    nonNull: ["Options_Code"]
+  }
+}
+
+SELECT
+  IFNULL(VIN, 'Unknown') AS VIN,
+  Option_Quantities,
+  Options_Code,
+  IFNULL(Option_Desc, 'Unknown') AS Option_Desc,
+  IFNULL(SUBSTRING(Model_Text, 1, 4), 'Unknown') AS Model_Text,
+  IFNULL(Sales_Price, 0) AS Sales_Price
+FROM
+${ref('100_base_data')}

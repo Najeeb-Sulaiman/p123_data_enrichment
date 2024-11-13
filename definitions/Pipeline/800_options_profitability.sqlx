@@ -1,7 +1,11 @@
 config {
     type: "table",
     schema: constants.DATASET_ID,
-    description: "enriched base dataset"
+    description: "enriched base dataset with profitability calculation",
+    uniqueKey: ["VIN"],
+    assertions: {
+        nonNull: ["Options_Code"]
+    }
 }
 
 WITH
@@ -21,7 +25,7 @@ SELECT
   b.Option_Quantities,
   b.Options_Code,
   b.Option_Desc,
-  SUBSTRING(b.Model_Text, 1, 4) AS Model_Text,
+  b.Model_Text,
   v.brand,
   v.platform,
   v.nameplate_display,
@@ -38,12 +42,12 @@ SELECT
 END
   AS Production_Cost
 FROM
-  ${ref('100_base_data')} b
+  ${ref('200_base_data')} b
 LEFT JOIN
   ${ref('200_options_data')} o
 ON
   b.Options_Code = o.Option_Code
-  AND SUBSTRING(b.Model_Text, 1, 4) = o.Model
+  AND b.Model_Text = o.Model
 LEFT JOIN
   average_material_cost avg
 ON
@@ -51,7 +55,7 @@ ON
 LEFT JOIN
   ${ref('200_vehicle_line_mapping')} v
 ON
-  SUBSTRING(b.Model_Text, 1, 4) = v.nameplate_code )
+  b.Model_Text = v.nameplate_code )
   -- Select relevant columns for output
 SELECT
   VIN,
