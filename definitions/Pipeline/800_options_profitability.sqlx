@@ -1,0 +1,73 @@
+config {
+    type: "table",
+    schema: constants.DATASET_ID,
+    description: "enriched base dataset with profitability calculation",
+    uniqueKey: ["VIN"],
+    assertions: {
+        nonNull: ["Options_Code"]
+    }
+}
+
+WITH
+  -- Computing the average material cost for each option code across all models
+  average_material_cost AS (
+SELECT
+  Option_Code,
+  AVG(Material_Cost) AS avg_material_cost
+FROM
+  ${ref('200_options_data')}
+GROUP BY
+  Option_Code ),
+  -- Enriching base data with production cost based on provided logic
+  enriched_data AS (
+SELECT
+  b.VIN,
+  b.Option_Quantities,
+  b.Options_Code,
+  b.Option_Desc,
+  b.Model_Text,
+  v.brand,
+  v.platform,
+  v.nameplate_display,
+  b.Sales_Price,
+  -- Case for Sales Price <= 0, set Production Cost to 0
+  CASE
+    WHEN b.Sales_Price <= 0 THEN 0.0
+    -- Exact match - using options data
+    WHEN o.Material_Cost IS NOT NULL THEN o.Material_Cost
+    -- No exact match, using average material cost across models
+    WHEN o.Material_Cost IS NULL AND avg.avg_material_cost IS NOT NULL THEN avg.avg_material_cost
+    -- Fallback to 45% of Sales Price if no matching option code
+    ELSE 0.45 * b.Sales_Price
+END
+  AS Production_Cost
+FROM
+  ${ref('200_base_data')} b
+LEFT JOIN
+  ${ref('200_options_data')} o
+ON
+  b.Options_Code = o.Option_Code
+  AND b.Model_Text = o.Model
+LEFT JOIN
+  average_material_cost avg
+ON
+  b.Options_Code = avg.Option_Code
+LEFT JOIN
+  ${ref('200_vehicle_line_mapping')} v
+ON
+  b.Model_Text = v.nameplate_code )
+  -- Select relevant columns for output
+SELECT
+  VIN,
+  Option_Quantities,
+  Options_Code,
+  Option_Desc,
+  Model_Text,
+  brand,
+  platform,
+  nameplate_display,
+  Sales_Price,
+  Production_Cost,
+  (Sales_Price - production_cost) AS Profit
+FROM
+  enriched_data

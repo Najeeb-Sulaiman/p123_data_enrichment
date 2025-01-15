@@ -1,0 +1,22 @@
+config {
+  type: "assertion",
+  description: "Validate that matching records use the material cost from the Options Data."
+}
+
+WITH matched_options AS (
+  SELECT
+    base.production_cost,
+    base.sales_price,
+    options.material_cost
+  FROM
+    ${ref("800_options_profitability")} base
+  JOIN
+    ${ref("200_options_data")} options
+  ON
+    base.options_code = options.option_code
+    AND base.Model_Text = options.model
+)
+SELECT *
+FROM matched_options
+WHERE
+  production_cost != material_cost AND sales_price > 0

@@ -1,0 +1,23 @@
+config {
+    type: "table",
+    schema: constants.DATASET_ID,
+    description: "cleaned options_data",
+    uniqueKey: ["Model", "Option_Code"],
+    assertions: {
+    uniqueKey: ["Model", "Option_Code"],
+    nonNull: ["Model", "Option_Code"]
+  }
+}
+
+SELECT
+  Model,
+  Option_Code,
+  Option_Desc,
+  -- Get the average where there is duplicate record on Model and Option_code
+  IFNULL(AVG(Material_Cost),0) AS Material_Cost
+FROM
+   ${ref('100_options_data')}
+GROUP BY
+  MODEL,
+  Option_Code,
+  Option_Desc
